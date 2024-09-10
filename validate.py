@@ -31,14 +31,14 @@ def validate_owner_repo(owner: str, repo: str):
     """
     return bool(owner) and bool(repo)
 
-def initialize_github_client():
+def initialize_github_client(github_token):
     """
     Initialize a GitHub client using the GITHUB_TOKEN environment variable.
 
     Returns:
         object: A GitHub client object.
     """
-    github_token = os.getenv("GITHUB_TOKEN")
+    #github_token = os.getenv("GITHUB_TOKEN")
     if not github_token:
         raise EnvironmentError("GitHub token not found in environment variables")
     return GithubClient(github_token)
