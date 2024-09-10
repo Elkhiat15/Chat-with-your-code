@@ -68,3 +68,39 @@ while True:
         github_url = input("Please enter the GitHub repository URL: ")
 
 print("Uploading to vector store...")
+
+
+model_name = "models/embedding-001"
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+embed_model = GeminiEmbedding(
+    model_name=model_name, api_key=GOOGLE_API_KEY
+)
+
+# ====== Create vector store and upload data ======
+emb_dim = 768 
+faiss_index = faiss.IndexFlatL2(emb_dim)
+vector_store = FaissVectorStore(faiss_index=faiss_index )
+
+storage_context = StorageContext.from_defaults(vector_store=vector_store )
+index = VectorStoreIndex.from_documents(
+    docs,
+    storage_context=storage_context,
+    embed_model = embed_model)
+query_engine = index.as_query_engine(llm= Gemini())
+
+# Include a simple question to test.
+intro_question = "What is the repository about?"
+print(f"Test question: {intro_question}")
+print("=" * 50)
+
+while True:
+    user_question = input("Please enter your question (or type 'exit' to quit): ")
+    if user_question.lower() == "exit":
+        print("Exiting, thanks for chatting!")
+        break
+
+    print(f"Your question: {user_question}")
+    print("=" * 50)
+
+    answer = query_engine.query(user_question)
+    print(f"Answer: {str(answer)} \n")
