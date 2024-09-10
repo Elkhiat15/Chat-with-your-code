@@ -1,51 +1,25 @@
-from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.llms.gemini import Gemini
-from llama_index.readers.github import GithubRepositoryReader, GithubClient
-from llama_index.core import VectorStoreIndex
-from llama_index.vector_stores.faiss import FaissVectorStore
-from llama_index.core.storage.storage_context import StorageContext
+from llama_index.readers.github import GithubRepositoryReader
 from llama_index.core import download_loader
 from dotenv import load_dotenv
 
-import faiss
-import re
 import os
+import helper, validate
 
-def parse_github_url(url):
-    pattern = r"https://github\.com/([^/]+)/([^/]+)"
-    match = re.match(pattern, url)
-    return match.groups() if match else (None, None)
-
-def validate_owner_repo(owner, repo):
-    return bool(owner) and bool(repo)
-
-def initialize_github_client():
-    github_token = os.getenv("GITHUB_TOKEN")
-    return GithubClient(github_token)
-
-def validate():
-    # Check for Gemini API key
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    if not google_api_key:
-        raise EnvironmentError("Google API key not found in environment variables")
-
-    # Check for GitHub Token
-    github_token = os.getenv("GITHUB_TOKEN")
-    if not github_token:
-        raise EnvironmentError("GitHub token not found in environment variables")
-
+# Load environment variables from .env file
 load_dotenv()
-validate()
 
-github_client = initialize_github_client()
+validate.validate()
+
+github_client = validate.initialize_github_client()
 download_loader("GithubRepositoryReader")
 
 github_url = input("Please enter the GitHub repository URL: ")
-owner, repo = parse_github_url(github_url)
+owner, repo = validate.parse_github_url(github_url)
 
 while True:
-    owner, repo = parse_github_url(github_url)
-    if validate_owner_repo(owner, repo):
+    owner, repo = validate.parse_github_url(github_url)
+    if validate.validate_owner_repo(owner, repo):
         loader = GithubRepositoryReader(
             github_client,
             owner=owner,
@@ -69,26 +43,27 @@ while True:
 
 print("Uploading to vector store...")
 
-
+# Define the variables
 model_name = "models/embedding-001"
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-embed_model = GeminiEmbedding(
-    model_name=model_name, api_key=GOOGLE_API_KEY
-)
+emb_dim=768
 
-# ====== Create vector store and upload data ======
-emb_dim = 768 
-faiss_index = faiss.IndexFlatL2(emb_dim)
-vector_store = FaissVectorStore(faiss_index=faiss_index )
+# Create the embedding model
+embed_model = helper.create_embedding_model(model_name, GOOGLE_API_KEY)
 
-storage_context = StorageContext.from_defaults(vector_store=vector_store )
-index = VectorStoreIndex.from_documents(
-    docs,
-    storage_context=storage_context,
-    embed_model = embed_model)
-query_engine = index.as_query_engine(llm= Gemini())
+# Create the vector store
+vector_store = helper.create_vector_store(emb_dim=emb_dim)
 
-# Include a simple question to test.
+# Create the storage context
+storage_context = helper.create_storage_context(vector_store)
+
+# Create the index
+index = helper.create_index(docs, storage_context, embed_model)
+
+# Create the query engine
+query_engine = helper.create_query_engine(index, llm=Gemini())
+
+# Test the query engine
 intro_question = "What is the repository about?"
 print(f"Test question: {intro_question}")
 print("=" * 50)
