@@ -1,11 +1,12 @@
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.llms.gemini import Gemini
-from dotenv import load_dotenv
 from llama_index.readers.github import GithubRepositoryReader, GithubClient
-from llama_index.core import download_loader
 from llama_index.core import VectorStoreIndex
 from llama_index.vector_stores.faiss import FaissVectorStore
 from llama_index.core.storage.storage_context import StorageContext
+from llama_index.core import download_loader
+from dotenv import load_dotenv
+
 import faiss
 import re
 import os
@@ -32,14 +33,9 @@ def validate():
     github_token = os.getenv("GITHUB_TOKEN")
     if not github_token:
         raise EnvironmentError("GitHub token not found in environment variables")
-d = 768 
-faiss_index = faiss.IndexFlatL2(d)
 
-model_name = "models/embedding-001"
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-embed_model = GeminiEmbedding(
-    model_name=model_name, api_key=GOOGLE_API_KEY
-)
+load_dotenv()
+validate()
 
 github_client = initialize_github_client()
 download_loader("GithubRepositoryReader")
@@ -55,7 +51,7 @@ while True:
             owner=owner,
             repo=repo,
             filter_file_extensions=(
-                [".py", ".java", ".cpp" ".md"],
+                [".py", ".java",".js", ".cpp" ".md"],
                 GithubRepositoryReader.FilterType.INCLUDE,
             ),
             verbose=False,
@@ -72,37 +68,3 @@ while True:
         github_url = input("Please enter the GitHub repository URL: ")
 
 print("Uploading to vector store...")
-
-# ====== Create vector store and upload data ======
-vector_store = FaissVectorStore(faiss_index=faiss_index )
-#vector_store = DeepLakeVectorStore(
- #   dataset_path=DATASET_PATH,
- #   overwrite=True,
-  #  runtime={"tensor_db": True},
-#)
-
-storage_context = StorageContext.from_defaults(vector_store=vector_store )
-index = VectorStoreIndex.from_documents(
-    docs,
-    storage_context=storage_context,
-    embed_model = embed_model)
-query_engine = index.as_query_engine(llm= Gemini())
-
-# Include a simple question to test.
-intro_question = "What is the repository about?"
-print(f"Test question: {intro_question}")
-print("=" * 50)
-answer = query_engine.query(intro_question)
-
-print(f"Answer: {str(answer)} \n")
-while True:
-    user_question = input("Please enter your question (or type 'exit' to quit): ")
-    if user_question.lower() == "exit":
-        print("Exiting, thanks for chatting!")
-        break
-
-    print(f"Your question: {user_question}")
-    print("=" * 50)
-
-    answer = query_engine.query(user_question)
-    print(f"Answer: {str(answer)} \n")
