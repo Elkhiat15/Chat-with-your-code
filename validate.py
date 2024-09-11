@@ -1,5 +1,5 @@
 
-from llama_index.readers.github import GithubClient
+from llama_index.readers.github import GithubClient, GithubRepositoryReader
 
 import os 
 import re
@@ -56,3 +56,20 @@ def validate():
     github_token = os.getenv("GITHUB_TOKEN")
     if not github_token:
         raise EnvironmentError("GitHub token not found in environment variables")
+    
+def load_repo(github_client, owner, repo):
+    
+    loader = GithubRepositoryReader(
+            github_client,
+            owner=owner,
+            repo=repo,
+            filter_file_extensions=(
+                [".py", ".java",".js", ".cpp" ".md"],
+                GithubRepositoryReader.FilterType.INCLUDE,
+            ),
+            verbose=False,
+            concurrent_requests=5,
+        )
+    docs = loader.load_data(branch="main")
+    
+    return docs
