@@ -8,7 +8,7 @@ from css_styles import css, bot_template, user_template
 
 st.set_page_config(
     page_title="Chat With Code",
-    page_icon=":chat:",
+    page_icon=":male-teacher:",
     layout="wide"
     )
 
