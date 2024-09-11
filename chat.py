@@ -2,8 +2,16 @@ from llama_index.llms.gemini import Gemini
 from llama_index.readers.github import GithubRepositoryReader
 from llama_index.core import download_loader
 import streamlit as st
-import  validate, engine
+import validate, engine
 from css_styles import css, bot_template, user_template
+
+
+st.set_page_config(
+    page_title="Chat With Code",
+    page_icon=":chat:",
+    layout="wide"
+    )
+
 
 if "load" not in st.session_state:
     st.session_state.load = False
@@ -32,16 +40,16 @@ if not st.session_state.load:
 
     # Insert a form in the container
     with placeholder.form("login"):
-        st.markdown("#### Enter your sectrets")
+        st.markdown("#### Enter your secrets, be sure they are valid")
         st.markdown("[How to get Google API key](https://ai.google.dev/gemini-api/docs/api-key)")
         st.session_state.GOOGLE_API_KEY = st.text_input("Google API Key", type="password")
         st.markdown("[How to get  'classic' personal GitHub Token?](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)")
-        st.session_state.GITHUB_TOKEN = st.text_input("GitHub Token", type="password")
+        st.session_state.GITHUB_TOKEN = st.text_input("Personal GitHub Token", type="password")
         submit = st.form_submit_button("Add")
 
     if submit and st.session_state.GOOGLE_API_KEY and st.session_state.GITHUB_TOKEN: 
         placeholder.empty()
-        st.success("Added successful")
+        st.success("Added successfully")
         with st.spinner("Loading Github Repository Reader"):
             download_loader("GithubRepositoryReader")
         st.session_state.load = True
@@ -49,9 +57,9 @@ if not st.session_state.load:
         pass    
 
    
-         
+# ========= load your repo and define the engine ==============         
 if st.session_state.load and not st.session_state.started:
-    github_url = st.text_input("Enter repo URL") 
+    github_url = st.text_input("Enter a Repo URL from your GitHub") 
     if github_url:
         github_client = validate.initialize_github_client(st.session_state.GITHUB_TOKEN)
         owner, repo = validate.parse_github_url(github_url)
@@ -74,14 +82,18 @@ if st.session_state.load and not st.session_state.started:
                     st.session_state.started = True
             except:
                 st.error("Please, Refresh the page and enter a valid Google API key")
-            
+
+
+# =============== start chatting with you code ========================
 if st.session_state.started:
     _,c,_ = st.columns(spec=[1,5,1])
     c.subheader(":blue[Enter your question]")
     user_question = c.text_input("Enter your question:", label_visibility="collapsed")
-    if user_question!="":
+    
+    if user_question!="":    
         # Get the answer to the user's question
         answer = st.session_state.query_engine.query(user_question)
+        
         # Update the chat history
         st.session_state.chat_history.append(("User", user_question))
         st.session_state.chat_history.append(("Bot", answer))

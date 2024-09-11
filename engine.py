@@ -2,6 +2,21 @@ from llama_index.llms.gemini import Gemini
 import helper
 
 def get_query_engine(GOOGLE_API_KEY, docs):
+    """
+        Creates and returns a query engine instance.
+
+        Parameters:
+        - GOOGLE_API_KEY (str): The Google API key to use for creating the embedding model.
+        - docs (list): A list of documents to index.
+
+        Returns:
+        - query_engine: An instance of the query engine, ready to be used for querying.
+
+        Notes:
+        - This function creates an embedding model, a vector store, a storage context, and an index,
+        and then uses these components to create a query engine instance.
+        - The Gemini LLM is used as the language model for the query engine.
+    """
     # Define the variables
     model_name = "models/embedding-001"
     emb_dim=768
