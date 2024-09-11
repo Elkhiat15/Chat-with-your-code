@@ -2,12 +2,8 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core import VectorStoreIndex
 from llama_index.vector_stores.faiss import FaissVectorStore
 from llama_index.core.storage.storage_context import StorageContext
-from dotenv import load_dotenv
 
 import faiss
-
-# Load environment variables from .env file
-load_dotenv()
 
 
 def create_embedding_model(model_name: str, api_key: str):
