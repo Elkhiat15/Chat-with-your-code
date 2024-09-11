@@ -66,7 +66,7 @@ def create_index(docs: list, storage_context: object, embed_model: object):
         embed_model=embed_model
     )
 
-def create_query_engine(index: object, llm: object) -> object:
+def create_query_engine(index: object, llm: object):
     """
     Create a query engine instance.
 

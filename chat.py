@@ -1,81 +1,98 @@
 from llama_index.llms.gemini import Gemini
 from llama_index.readers.github import GithubRepositoryReader
 from llama_index.core import download_loader
-from dotenv import load_dotenv
+import streamlit as st
+import  validate, engine
+from css_styles import css, bot_template, user_template
 
-import os
-import helper, validate
+if "load" not in st.session_state:
+    st.session_state.load = False
 
-# Load environment variables from .env file
-load_dotenv()
+if "started" not in st.session_state:
+    st.session_state.started = False
 
-validate.validate()
+if "GITHUB_TOKEN" not in st.session_state:
+    st.session_state.GITHUB_TOKEN = ""
 
-github_client = validate.initialize_github_client()
-download_loader("GithubRepositoryReader")
+if "GOOGLE_API_KEY" not in st.session_state:
+    st.session_state.GOOGLE_API_KEY = ""
 
-github_url = input("Please enter the GitHub repository URL: ")
-owner, repo = validate.parse_github_url(github_url)
+if "docs" not in st.session_state:
+    st.session_state.docs = []
 
-while True:
-    owner, repo = validate.parse_github_url(github_url)
-    if validate.validate_owner_repo(owner, repo):
-        loader = GithubRepositoryReader(
-            github_client,
-            owner=owner,
-            repo=repo,
-            filter_file_extensions=(
-                [".py", ".java",".js", ".cpp" ".md"],
-                GithubRepositoryReader.FilterType.INCLUDE,
-            ),
-            verbose=False,
-            concurrent_requests=5,
-        )
-        print(f"Loading {repo} repository by {owner}")
-        docs = loader.load_data(branch="main")
-        print("Documents uploaded:")
-        for doc in docs:
-            print(doc.metadata)
-        break  # Exit the loop once the valid URL is processed
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+st.markdown(css, unsafe_allow_html=True)
+
+
+# ========= Show the form to take API and Token ==========
+if not st.session_state.load:
+    placeholder = st.empty()
+
+    # Insert a form in the container
+    with placeholder.form("login"):
+        st.markdown("#### Enter your sectrets")
+        st.markdown("[How to get Google API key](https://ai.google.dev/gemini-api/docs/api-key)")
+        st.session_state.GOOGLE_API_KEY = st.text_input("Google API Key", type="password")
+        st.markdown("[How to get  'classic' personal GitHub Token?](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)")
+        st.session_state.GITHUB_TOKEN = st.text_input("GitHub Token", type="password")
+        submit = st.form_submit_button("Add")
+
+    if submit and st.session_state.GOOGLE_API_KEY and st.session_state.GITHUB_TOKEN: 
+        placeholder.empty()
+        st.success("Added successful")
+        with st.spinner("Loading Github Repository Reader"):
+            download_loader("GithubRepositoryReader")
+        st.session_state.load = True
     else:
-        print("Invalid GitHub URL. Please try again.")
-        github_url = input("Please enter the GitHub repository URL: ")
+        pass    
 
-print("Uploading to vector store...")
+   
+         
+if st.session_state.load and not st.session_state.started:
+    github_url = st.text_input("Enter repo URL") 
+    if github_url:
+        github_client = validate.initialize_github_client(st.session_state.GITHUB_TOKEN)
+        owner, repo = validate.parse_github_url(github_url)
+        if validate.validate_owner_repo(owner, repo):
+            try:
+                with st.spinner("Loading your Repo"):
+                    st.session_state.docs = validate.load_repo(github_client, owner, repo)
+            except:
+                st.error("Please, refresh the page and enter a valid GitHub Token")
+        else:
+            st.error("Invalid GitHub URL. Please try again.")
+            #github_url = input("Please enter the GitHub repository URL: ")
 
-# Define the variables
-model_name = "models/embedding-001"
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-emb_dim=768
+      # Create the query engine
+        if st.session_state.docs:
+            try:
+                with st.spinner("Preparing your engine"):
+                    if "query_engine" not in st.session_state:
+                        st.session_state.query_engine =engine.get_query_engine(st.session_state.GOOGLE_API_KEY, st.session_state.docs)
+                    st.session_state.started = True
+            except:
+                st.error("Please, Refresh the page and enter a valid Google API key")
+            
+if st.session_state.started:
+    _,c,_ = st.columns(spec=[1,5,1])
+    c.subheader(":blue[Enter your question]")
+    user_question = c.text_input("Enter your question:", label_visibility="collapsed")
+    if user_question!="":
+        # Get the answer to the user's question
+        answer = st.session_state.query_engine.query(user_question)
+        # Update the chat history
+        st.session_state.chat_history.append(("User", user_question))
+        st.session_state.chat_history.append(("Bot", answer))
 
-# Create the embedding model
-embed_model = helper.create_embedding_model(model_name, GOOGLE_API_KEY)
-
-# Create the vector store
-vector_store = helper.create_vector_store(emb_dim=emb_dim)
-
-# Create the storage context
-storage_context = helper.create_storage_context(vector_store)
-
-# Create the index
-index = helper.create_index(docs, storage_context, embed_model)
-
-# Create the query engine
-query_engine = helper.create_query_engine(index, llm=Gemini())
-
-# Test the query engine
-intro_question = "What is the repository about?"
-print(f"Test question: {intro_question}")
-print("=" * 50)
-
-while True:
-    user_question = input("Please enter your question (or type 'exit' to quit): ")
-    if user_question.lower() == "exit":
-        print("Exiting, thanks for chatting!")
-        break
-
-    print(f"Your question: {user_question}")
-    print("=" * 50)
-
-    answer = query_engine.query(user_question)
-    print(f"Answer: {str(answer)} \n")
+        with st.container(border=True, height=700):    
+            for speaker, message in st.session_state.chat_history:
+                if speaker == "User":
+                    st.write(user_template.replace("{{MSG}}", message),
+                        unsafe_allow_html=True)
+                else:
+                    st.write(bot_template.replace("{{MSG}}", f"\n\n{message}\n\n"),
+                            unsafe_allow_html=True)
+    else:
+        st.session_state.chat_history = []
