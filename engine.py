@@ -1,5 +1,6 @@
 from llama_index.llms.gemini import Gemini
 import helper
+import os
 
 def get_query_engine(GOOGLE_API_KEY, docs):
     """
@@ -20,7 +21,7 @@ def get_query_engine(GOOGLE_API_KEY, docs):
     # Define the variables
     model_name = "models/embedding-001"
     emb_dim=768
-
+    os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
     # Create the embedding model
     embed_model = helper.create_embedding_model(model_name, GOOGLE_API_KEY)
 
